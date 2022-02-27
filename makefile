@@ -1,15 +1,19 @@
 # Makefile
-all: diskimage bootloader stdlib kernel
+all: bootloader kernel stdlib diskimage
 
 # Recipes
 diskimage:
-	# TODO : Tambahkan untuk pembuatan image
+	dd if=out/bootloader of=out/system.img bs=512 count=1 conv=notrunc
+	dd if=out/kernel of=out/system.img bs=512 conv=notrunc seek=1
 
 bootloader:
-	# TODO : Tambahkan untuk pembuatan bootloader
+	nasm src/asm/bootloader.asm -o out/bootloader
 
 kernel:
-	# TODO : Tambahkan untuk pembuatan kernel
+	bcc -ansi -c -o out/kernel.o src/c/kernel.c
+	nasm -f as86 src/asm/kernel.asm -o out/kernel_asm.o
+	ld86 -o out/kernel -d out/kernel.o out/kernel_asm.o
+
 
 stdlib:
 	# Opsional
