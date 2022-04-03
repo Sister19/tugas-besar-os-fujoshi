@@ -30,21 +30,36 @@ int main() {
 }
 
 void handleInterrupt21(int AX, int BX, int CX, int DX) {
-    
+	char AL,AH;
+	int i = 0;
+	int * p;
+	char d;
+	AL = (char) (AX);
+	AH = (char) (AX >> 8);
+	switch (AL){
+		case 0x00:
+			printString(BX);
+		case 0x01:
+			readString(BX);
+		case 0x02:
+			readSector(BX,CX);
+		case 0x03:
+			writeSector(BX,CX);
+	}
 }
 
 void splashScreen() {
-  interrupt(0x10, 0x200, pagenum, 0, 0x222);
-  printString("FujOShi System");
-  interrupt(0x10, 0x200, pagenum, 0, 0x400);
+	interrupt(0x10, 0x200, pagenum, 0, 0x222);
+	printString("FujOShi System");
+	interrupt(0x10, 0x200, pagenum, 0, 0x400);
 }
 
 void printString(char* string) {
-  int i = 0;
-  while (string[i] != '\0') { // 0x0 == '\0'
-    interrupt(0x10, 0xE00+string[i], pagenum, 0, 0);
-    i++;
-  }
+	int i = 0;
+	while (string[i] != '\0') { // 0x0 == '\0'
+		interrupt(0x10, 0xE00+string[i], pagenum, 0, 0);
+		i++;
+	}
 }
 
 void readString(char* toread) {
@@ -85,4 +100,45 @@ void clearScreen() {
     }
     interrupt(0x10, 0x200, pagenum, 0, 0);
 }
+
+void readSector(byte *buffer, int sector_number){
+    int sector_read_count = 0x01;
+    int cylinder, sector;
+    int head, drive;
+
+    cylinder = div(sector_number, 36) << 8; // CH
+    sector   = mod(sector_number, 18) + 1;  // CL
+
+    head  = mod(div(sector_number, 18), 2) << 8; // DH
+    drive = 0x00;                                // DL
+
+    interrupt(
+        0x13,                       // Interrupt number
+        0x0200 | sector_read_count, // AX
+        buffer,                     // BX
+        cylinder | sector,          // CX
+        head | drive                // DX
+    );
+
+}
+void writeSector(byte *buffer, int sector_number){
+    int sector_read_count = 0x01;
+    int cylinder, sector;
+    int head, drive;
+
+    cylinder = div(sector_number, 36) << 8; // CH
+    sector   = mod(sector_number, 18) + 1;  // CL
+
+    head  = mod(div(sector_number, 18), 2) << 8; // DH
+    drive = 0x00;                                // DL
+
+    interrupt(
+        0x13,                       // Interrupt number
+        0x0300 | sector_read_count, // AX
+        buffer,                     // BX
+        cylinder | sector,          // CX
+        head | drive                // DX
+    );
+}
+
 
