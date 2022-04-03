@@ -56,7 +56,7 @@ void strcpy(char *dst, char *src) {
     dst[i] = src[i];
     i++;
   }
-  dst[i] = src[i];
+  dst[i] = '\0';
 }
 // Melakukan penyalinan null terminated string
 

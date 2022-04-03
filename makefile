@@ -12,11 +12,11 @@ bootloader:
 kernel:
 	bcc -ansi -c -o out/kernel.o src/c/kernel.c
 	nasm -f as86 src/asm/kernel.asm -o out/kernel_asm.o
-	ld86 -o out/kernel -d out/kernel.o out/kernel_asm.o
+	ld86 -o out/kernel -d out/kernel.o out/kernel_asm.o out/std_lib.o
 
 
 stdlib:
-	# Opsional
+	bcc -ansi -O3 -c -o out/std_lib.o src/c/std_lib.c
 
 run:
 	bochs -f src/config/if2230.config
