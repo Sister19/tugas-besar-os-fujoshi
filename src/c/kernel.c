@@ -180,7 +180,6 @@ void shell() {
   struct file_metadata metadata;
   enum fs_retcode return_code;
   char buf[64]; char name[64]; char cwd[64]; char args1[64]; char args2[64];
-  struct strwrap arg1wrap; struct strwrap arg2wrap;
   int i; int j; int cwd_id;
 
   readSector(&node_fs, FS_NODE_SECTOR_NUMBER);
