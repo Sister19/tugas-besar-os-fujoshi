@@ -18,17 +18,12 @@ int main() {
   fillKernelMap();
   makeInterrupt21();
   clearScreen();
-  splashScreen();
 
   shell();
   // KERNEL STAY
 }
-void mkdirHandler(char* cwd, char* path, unsigned int pathsize, unsigned int cwdsize) {
 
-
-  // write(&metadata, &return_code);
-}
-void byteprint(byte toprint) {
+void uintprint(unsigned int toprint) {
   printString("0x");
   while (toprint >= 0) {
     byte lb = toprint & 0xF;
@@ -91,23 +86,41 @@ void byteprint(byte toprint) {
   }
 }
 
+// int getinodecwd(char* cwd) {
+//   printString(cwd); endl;
+//   return 1;
+// }
+
+void respcode(enum fs_retcode return_code) {
+  if (return_code == FS_SUCCESS) {
+    printString("SUC"); endl;
+  } else if (return_code == FS_W_FILE_ALREADY_EXIST) {
+    printString("FAEX"); endl;
+  } else if (return_code == FS_W_NOT_ENOUGH_STORAGE) {
+    printString("NES"); endl;
+  } else if (return_code == FS_W_MAXIMUM_NODE_ENTRY) {
+    printString("MXN"); endl;
+  } else if (return_code == FS_W_MAXIMUM_SECTOR_ENTRY) {
+    printString("MXS"); endl;
+  } else if (return_code == FS_W_INVALID_FOLDER) {
+    printString("INV"); endl;
+  } else {
+    printString("UKN"); endl;
+  }
+
+  // write(&metadata, &return_code);
+}
+
 int getinodecwd(char* cwd) {
-  struct node_filesystem node_fs_1;
-  struct node_filesystem node_fs_2;
+  struct node_filesystem node_fs;
   struct node_entry nebuff;
-  char* str1;
-  int it;
-  int i;
-  int depth;
-  int startslash;
-  int endslash;
-  int prevparidx;
+  char* str1; int it; int i; int depth; int startslash; int endslash; int prevparidx;
   bool found = false;
-  it = 0;
-  startslash = 0;
-  endslash = 0;
-  depth = 0;
-  prevparidx = FS_NODE_P_IDX_ROOT;
+
+  it = 0; startslash = 0; endslash = 0; depth = 0; prevparidx = FS_NODE_P_IDX_ROOT;
+  readSector(&node_fs, FS_NODE_SECTOR_NUMBER);
+  readSector(&node_fs.nodes[32], FS_NODE_SECTOR_NUMBER+1);
+
   while (cwd[it] != '\0') {
     if (cwd[it] == '/') {
       if (depth == 0 && cwd[it+1] == '\0') {
@@ -116,29 +129,13 @@ int getinodecwd(char* cwd) {
         startslash = it;
       } else {
         endslash = it;
-        readSector(&node_fs_1, FS_NODE_SECTOR_NUMBER);
-        readSector(&node_fs_2, FS_NODE_SECTOR_NUMBER + 1);
         memcpy(&str1, &cwd[startslash+1], endslash-startslash); // string is target
-
-        found = false;
         for (i = 0; i < 64; i++) {
-           memcpy(&nebuff, &node_fs_1.nodes[i], sizeof(struct node_entry));
+           memcpy(&nebuff, &node_fs.nodes[i], sizeof(struct node_entry));
             if (strcmp(nebuff.name, str1) && nebuff.parent_node_index == prevparidx && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
               prevparidx = i;
-              found = true;
               break;
             }
-        }
-
-        if (!found) {
-          for (i = 0; i < 64; i++) {
-            memcpy(&nebuff, &node_fs_2.nodes[i], sizeof(struct node_entry));
-            if (strcmp(nebuff.name, str1) && nebuff.parent_node_index == prevparidx && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
-              prevparidx = i + 64;
-              found = true;
-              break;
-            }
-          }
         }
         startslash = it;
       }
@@ -149,135 +146,100 @@ int getinodecwd(char* cwd) {
   return prevparidx;
 }
 
-void lsHandler(char* cwd) {
-  struct node_filesystem node_fs_1;
-  struct node_filesystem node_fs_2;
-  struct node_entry nebuff;
-  int cwd_id;
-  int i;
-  i = 0;
-  cwd_id = getinodecwd(cwd);
-  // folder search
-  for (i = 0; i < 64; i++) {
-    memcpy(&nebuff, &node_fs_1.nodes[i], sizeof(struct node_entry));
-    if (nebuff.parent_node_index == cwd_id && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
-      interrupt(0x21, 0x0, nebuff.name, 0, 0); endl;
-    }
-  }
-    for (i = 0; i < 64; i++) {
-    memcpy(&nebuff, &node_fs_2.nodes[i], sizeof(struct node_entry));
-    if (nebuff.parent_node_index == cwd_id && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
-      interrupt(0x21, 0x0, nebuff.name, 0, 0); endl;
-    }
-  }
-  //file search
-}
+// void lsHandler(char* cwd) {
+//   struct node_filesystem node_fs_1;
+//   struct node_filesystem node_fs_2;
+//   struct node_entry nebuff;
+//   int cwd_id;
+//   int i;
+//   i = 0;
+//   cwd_id = getinodecwd(cwd);
+//   // folder search
+//   for (i = 0; i < 64; i++) {
+//     memcpy(&nebuff, &node_fs_1.nodes[i], sizeof(struct node_entry));
+//     if (nebuff.parent_node_index == cwd_id && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
+//       interrupt(0x21, 0x0, nebuff.name, 0, 0); endl;
+//     }
+//   }
+//     for (i = 0; i < 64; i++) {
+//     memcpy(&nebuff, &node_fs_2.nodes[i], sizeof(struct node_entry));
+//     if (nebuff.parent_node_index == cwd_id && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
+//       interrupt(0x21, 0x0, nebuff.name, 0, 0); endl;
+//     }
+//   }
+//   //file search
+// }
 void shell() {
+  // struct node_filesystem node_fs_1;
+  // struct node_filesystem node_fs_2;
+  // struct node_entry nebuff;
+  // int cwd_id;
+  // int i;
+  struct node_filesystem node_fs;
+  struct node_entry nebuff;
   struct file_metadata metadata;
   enum fs_retcode return_code;
-  struct node_filesystem node_fs_1;
-  struct node_filesystem node_fs_2;
-  struct node_entry nebuff;
-  int cwd_id;
-  int i;
-  char buf[64];
-  char name[64];
-  char cwd[64];
-  char args1[64];
-  char args2[64];
-  int splocstart;
-  int splocend;
+  char buf[64]; char name[64]; char cwd[64]; char args1[64]; char args2[64];
+  struct strwrap arg1wrap; struct strwrap arg2wrap;
+  int i; int j; int cwd_id;
 
+  readSector(&node_fs, FS_NODE_SECTOR_NUMBER);
+  readSector(&node_fs.nodes[32], FS_NODE_SECTOR_NUMBER+1);
+  strcpy(name,  "GG");
+  strcpy(cwd,  "/");
 
-  interrupt(0x21, 0x0, "Masukkan Nama: ", 0, 0);
-  interrupt(0x21, 0x1, buf, 0, 0);
-  strcpy(&name, buf);
-  strcpy(&cwd, "/");
-  interrupt(0x21, 0x0, "Halo ", 0, 0);
-  interrupt(0x21, 0x0, buf, 0, 0);
-  interrupt(0x21, 0x0, ", Selamat Datang di FujOShi, Enjoy your Stay!", 0, 0);
   endl; endl;
+  // interrupt(0x21, 0x0, "Masukkan Nama: ", 0, 0);
+  // interrupt(0x21, 0x1, buf, 0, 0);
+  // strcpy(&name, buf);
+  // strcpy(&cwd, "/");
+  // interrupt(0x21, 0x0, "Halo ", 0, 0);
+  // interrupt(0x21, 0x0, buf, 0, 0);
+  // interrupt(0x21, 0x0, ", Selamat Datang di FujOShi, Enjoy your Stay!", 0, 0);
+  // endl; endl;
   while (true) {
+    clear(buf, 64);
+    clear(args1, 64);
+    clear(args2, 64);
     interrupt(0x21, 0x0, "FujOShi@", 0, 0);
     interrupt(0x21, 0x0, name, 0, 0);
     interrupt(0x21, 0x0, ":", 0, 0);
     interrupt(0x21, 0x0, cwd, 0, 0);
     interrupt(0x21, 0x0, "$ ", 0, 0);
     interrupt(0x21, 0x1, buf, 0, 0);
-    interrupt(0x21, 0x0, buf, 0, 0);
-    endl;
-    splocstart = 0;
-    splocend = 0;
-    while (buf[splocend] != ' ' && buf[splocend] != '\0') splocend++;
-    memcpy(&args1, buf, splocend);
-    args1[splocend] = '\0';
+    i = 0;
+    while (buf[i] != ' ' && buf[i] != '\0') i++;
+    memcpy(args1, buf, i);
+    args1[i] = '\0';
     if (strcmp("cd", args1)) {
     } else if (strcmp("ls", args1)) {
-        i = 0;
+        readSector(&node_fs, FS_NODE_SECTOR_NUMBER);
+        readSector(&node_fs.nodes[32], FS_NODE_SECTOR_NUMBER+1);
         cwd_id = getinodecwd(cwd);
         // folder search
         for (i = 0; i < 64; i++) {
-          memcpy(&nebuff, &node_fs_1.nodes[i], sizeof(struct node_entry));
-          if (nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
+          memcpy(&nebuff, &node_fs.nodes[i], sizeof(struct node_entry));
+          if (nebuff.parent_node_index == cwd_id && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
+            interrupt(0x21, 0x0, "/", 0, 0);
+            interrupt(0x21, 0x0, nebuff.name, 0, 0); 
+            interrupt(0x21, 0x0, "/", 0, 0); endl;
+          }
+        }
+        for (i = 0; i < 64; i++) {
+          memcpy(&nebuff, &node_fs.nodes[i], sizeof(struct node_entry));
+          if (nebuff.parent_node_index == cwd_id && nebuff.sector_entry_index != FS_NODE_S_IDX_FOLDER) {
             interrupt(0x21, 0x0, nebuff.name, 0, 0); endl;
           }
         }
-    for (i = 0; i < 64; i++) {
-    memcpy(&nebuff, &node_fs_2.nodes[i], sizeof(struct node_entry));
-    if (nebuff.parent_node_index == cwd_id && nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
-      interrupt(0x21, 0x0, nebuff.name, 0, 0); endl;
-    }
-  }
+        // file search
     } else if (strcmp("mv", buf)) {
-
     } else if (strcmp("mkdir", args1)) {
-      splocstart = splocend+1;
-      if (splocstart == 6) {byteprint(splocstart); endl;}
-      splocend = splocstart;
-      while (buf[splocend] != ' ' && buf[splocend] != '\0') splocend++;
-      memcpy(&args1, &buf[splocstart], splocend);
-      args1[splocend] = '\0';
-      printString(name); endl;
-      printString(args1); endl; printString(cwd); endl;
-      // PROCESS
-      metadata.filesize = 0; 
-      byteprint(metadata.filesize); endl;
-      // parent searching
-      strcpy(&metadata.node_name, args1);
+      strcpy(args2, buf+i+1);
+      strcpy(metadata.node_name, args2);
       metadata.parent_index = getinodecwd(cwd);
-      if (metadata.parent_index == FS_NODE_P_IDX_ROOT) {
-        printString("succeeded"); endl;
-      }
+      metadata.filesize = 0;
       write(&metadata, &return_code);
-      /* 
-      enum fs_retcode {
-    FS_UNKNOWN_ERROR    = -1,
-    FS_SUCCESS          = 0,
-    FS_R_NODE_NOT_FOUND = 1,
-    FS_R_TYPE_IS_FOLDER = 2,
-
-    FS_W_FILE_ALREADY_EXIST   = 3,
-    FS_W_NOT_ENOUGH_STORAGE   = 4,
-    FS_W_MAXIMUM_NODE_ENTRY   = 5,
-    FS_W_MAXIMUM_SECTOR_ENTRY = 6,
-    FS_W_INVALID_FOLDER       = 7
-};
-      */
-      if (return_code == FS_SUCCESS) {
-        printString("succeeded in creating folder"); endl;
-      } else if (return_code == FS_W_FILE_ALREADY_EXIST) {
-        printString("failed in creating folder, file already exist"); endl;
-      } else if (return_code == FS_W_NOT_ENOUGH_STORAGE) {
-        printString("failed in creating folder, not enough storage"); endl;
-      } else if (return_code == FS_W_MAXIMUM_NODE_ENTRY) {
-        printString("failed in creating folder, maximum node entry"); endl;
-      } else if (return_code == FS_W_MAXIMUM_SECTOR_ENTRY) {
-        printString("failed in creating folder, maximum sector entry"); endl;
-      } else if (return_code == FS_W_INVALID_FOLDER) {
-        printString("failed in creating folder, invalid folder"); endl;
-      } else {
-        printString("failed in creating folder, unknown error"); endl;
-      }
+      respcode(return_code);
       // PROCESS END
     } else if (strcmp("cat", buf)) {
       
@@ -318,12 +280,12 @@ void handleInterrupt21(int AX, int BX, int CX, int DX) {
 
 }
 
-void splashScreen() {
-  char* str = "FujOShi System";
-	interrupt(0x10, 0x200, pagenum, 0, 0x222);
-	interrupt(0x21, 0x0, str, 0, 0);
-	interrupt(0x10, 0x200, pagenum, 0, 0x400);
-}
+// void splashScreen() {
+//   char* str = "FujOShi System";
+// 	interrupt(0x10, 0x200, pagenum, 0, 0x222);
+// 	interrupt(0x21, 0x0, str, 0, 0);
+// 	interrupt(0x10, 0x200, pagenum, 0, 0x400);
+// }
 
 void printString(char* string) {
 	int i = 0;
@@ -435,17 +397,18 @@ void fillKernelMap() {
 void read(struct file_metadata *metadata, enum fs_retcode *return_code) {
   struct node_filesystem   node_fs_buffer;
   struct sector_filesystem sector_fs_buffer;
-  // Tambahkan tipe data yang dibutuhkan
-  int i;
-  int j;
-  byte sectorref;
-  struct sector_entry fragment;
+  struct sector_entry sebuff;
   struct node_entry nebuff;
+  // // Tambahkan tipe data yang dibutuhkan
+  int i; int j;
+  byte sectorref;
 
-  // Masukkan filesystem dari storage ke memori buffer
 
+  // // Masukkan filesystem dari storage ke memori buffer
+  readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER);
+  readSector(&node_fs_buffer.nodes[32], FS_SECTOR_SECTOR_NUMBER+1);
+  readSector(&sector_fs_buffer, FS_SECTOR_SECTOR_NUMBER);
   // 1. Cari node dengan nama dan lokasi yang sama pada filesystem.
-  readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER); // first 32 entries
   for (i = 0; i < 64; i++) {
     memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
     if (strcmp(nebuff.name, metadata->node_name) && nebuff.parent_node_index == metadata->parent_index) {
@@ -453,12 +416,11 @@ void read(struct file_metadata *metadata, enum fs_retcode *return_code) {
         if (sectorref == FS_NODE_S_IDX_FOLDER) {
           *return_code = FS_R_TYPE_IS_FOLDER;
         } else {
-            readSector(&sector_fs_buffer, FS_SECTOR_SECTOR_NUMBER);
-            memcpy(&fragment, &sector_fs_buffer.sector_list[sectorref], sizeof(struct sector_entry));
+            memcpy(&sebuff, &sector_fs_buffer.sector_list[sectorref], sizeof(struct sector_entry));
             j = 0;
             metadata->filesize = 0;
-            while (fragment.sector_numbers[j] != 0x0) {
-              readSector(metadata->buffer + j*512, fragment.sector_numbers[j]);
+            while (sebuff.sector_numbers[j] != 0x0) {
+              readSector(metadata->buffer[j*512], sebuff.sector_numbers[j]);
               metadata->filesize += 512;
               j++;
             }
@@ -467,50 +429,8 @@ void read(struct file_metadata *metadata, enum fs_retcode *return_code) {
         return;
       }
   }
-  readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER+1);
-  for (i = 0; i < 64; i++) {
-        memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
-    if (strcmp(nebuff.name, metadata->node_name) && nebuff.parent_node_index == metadata->parent_index) {
-      sectorref = nebuff.sector_entry_index;
-      if (sectorref == FS_NODE_S_IDX_FOLDER) {
-        *return_code = FS_R_TYPE_IS_FOLDER;
-      } else {
-          readSector(&sector_fs_buffer, FS_SECTOR_SECTOR_NUMBER);
-          memcpy(&fragment, &sector_fs_buffer.sector_list[sectorref], sizeof(struct sector_entry));
-          j = 0;
-          metadata->filesize = 0;
-          while (fragment.sector_numbers[j] != 0x0) {
-            readSector(metadata->buffer + j*512, fragment.sector_numbers[j]);
-            metadata->filesize += 512;
-            j++;
-          }
-          *return_code = FS_SUCCESS;
-      }
-      return;
-    }
-  }
-
   *return_code = FS_R_NODE_NOT_FOUND;
   return;
-  //    Jika ditemukan node yang cocok, lanjutkan ke langkah ke-2.
-  //    Jika tidak ditemukan kecocokan, tuliskan retcode FS_R_NODE_NOT_FOUND
-  //    dan keluar.  
-
-  // 2. Cek tipe node yang ditemukan
-  //    Jika tipe node adalah file, lakukan proses pembacaan.
-  //    Jika tipe node adalah folder, tuliskan retcode FS_R_TYPE_IS_FOLDER
-  //    dan keluar.
-
-  // Pembacaan
-  // 1. memcpy() entry sector sesuai dengan byte S
-  // 2. Lakukan iterasi proses berikut, i = 0..15
-  // 3. Baca byte entry sector untuk mendapatkan sector number partisi file
-  // 4. Jika byte bernilai 0, selesaikan iterasi
-  // 5. Jika byte valid, lakukan readSector() 
-  //    dan masukkan kedalam buffer yang disediakan pada metadata
-  // 6. Lompat ke iterasi selanjutnya hingga iterasi selesai
-  // 7. Tulis retcode FS_SUCCESS dan ganti filesize 
-        // pada akhir proses pembacaan.
 }
 
 
@@ -520,47 +440,36 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   struct sector_filesystem sector_fs_buffer;
   struct map_filesystem    map_fs_buffer;
   // Tambahkan tipe data yang dibutuhkan
-  struct node_entry nebuff;
-  struct sector_entry sebuff;
-  int head;
-  int nodeid;
-  int sectorid;
-  int i;
-  int j;
-  int pNodeID;
-  int emptySector;
-  int filesizeinsector;
-  byte pb;
-  byte sb;
+  struct node_entry nebuff; struct sector_entry sebuff;
+  int i; int j; //loopers
+  int fzins; int inode; int isect; int emsect;// multipurpose numbers
+  byte pb; byte sb; // multipurpose byte
   bool found;
 
-  if (div(metadata->filesize, 512) * 512 == metadata->filesize) {
-    filesizeinsector = div(metadata->filesize, 512);
-  } else {
-    filesizeinsector = div(metadata->filesize, 512) + 1;
-  }
   // Masukkan filesystem dari storage ke memori
-
   readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER);
+  readSector(&node_fs_buffer.nodes[32], FS_NODE_SECTOR_NUMBER+1);
   readSector(&sector_fs_buffer, FS_SECTOR_SECTOR_NUMBER);
   readSector(&map_fs_buffer, FS_MAP_SECTOR_NUMBER);
+  if (metadata->filesize == 0) {
+    pb = metadata->parent_index;
+    sb = FS_NODE_S_IDX_FOLDER;
+  } else {
+    pb = metadata->parent_index;
+    sb = isect;
+  }
+  if (div(metadata->filesize, 512) * 512 == metadata->filesize) {
+    fzins = div(metadata->filesize, 512);
+  } else {
+    fzins = div(metadata->filesize, 512) + 1;
+  }
   // 1. Cari node dengan nama dan lokasi parent yang sama pada node.
   //    Jika tidak ditemukan kecocokan, lakukan proses ke-2.
   //    Jika ditemukan node yang cocok, tuliskan retcode 
   //    FS_W_FILE_ALREADY_EXIST dan keluar. 
-
   for (i = 0; i < 64; i++) {
     memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
-    if (strcmp(nebuff.name, metadata->node_name) && nebuff.parent_node_index == metadata->parent_index) {
-      *return_code = FS_W_FILE_ALREADY_EXIST;
-      return;
-    }
-  }
-  printString("got past there"); endl;
-  readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER+1);
-  for (i = 0; i < 64; i++) {
-    memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
-    if (strcmp(nebuff.name, metadata->node_name) && nebuff.parent_node_index == metadata->parent_index) {
+    if (strcmp(nebuff.name, metadata->node_name) && nebuff.parent_node_index == pb && nebuff.sector_entry_index == sb) {
       *return_code = FS_W_FILE_ALREADY_EXIST;
       return;
     }
@@ -573,20 +482,9 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   for (i = 0; i < 64; i++) {
     memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
     if (nebuff.parent_node_index == 0x0) {
-      nodeid = i + 64;
+      inode = i;
       found = true;
       break;
-    }
-  }
-  if (!found) {
-    readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER);
-    for (i = 0; i < 64; i++) {
-      memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
-      if (nebuff.parent_node_index == 0x0) {
-        nodeid = i;
-        found = true;
-        break;
-      }
     }
   }
 
@@ -597,20 +495,10 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   // 3. Cek dan pastikan entry node pada indeks P adalah folder.
   //    Jika pada indeks tersebut adalah file atau entri kosong,
   //    Tuliskan retcode FS_W_INVALID_FOLDER dan keluar.
-  if (pNodeID <= 63) {
-    readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER);
-    memcpy(&nebuff, &node_fs_buffer.nodes[pNodeID], sizeof(struct node_entry));
-    if (nebuff.sector_entry_index != 0x0 && nebuff.sector_entry_index != FS_NODE_S_IDX_FOLDER) {
-      *return_code = FS_W_INVALID_FOLDER;
-      return;
-    }
-  } else {
-    readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER+1);
-    memcpy(&nebuff, &node_fs_buffer.nodes[pNodeID-64], sizeof(struct node_entry));
-    if (nebuff.sector_entry_index != 0x0 && nebuff.sector_entry_index != FS_NODE_S_IDX_FOLDER) {
-      *return_code = FS_W_INVALID_FOLDER;
-      return;
-    }
+  memcpy(&nebuff, &node_fs_buffer.nodes[metadata->parent_index], sizeof(struct node_entry));
+  if (nebuff.sector_entry_index == 0x0 || nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER) {
+    *return_code = FS_W_INVALID_FOLDER;
+    return;
   }
   // 4. Dengan informasi metadata filesize, hitung sektor-sektor 
   //    yang masih kosong pada filesystem map. Setiap byte map mewakili 
@@ -620,21 +508,19 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   //    Jika ukuran filesize melebihi 8192 bytes, tuliskan retcode
   //    FS_W_NOT_ENOUGH_STORAGE dan keluar.
   //    Jika tersedia empty space, lanjutkan langkah ke-5.
-  if (metadata->filesize > (unsigned int)8192) {
-    byteprint(metadata->filesize); endl;
-    printString("GOT HERE BITCH"); endl;
+  if (metadata->filesize > 8192) {
     *return_code = FS_W_NOT_ENOUGH_STORAGE;
     return;
   }
 
-  emptySector = 0;
+  emsect = 0;
   for (i = 0; i < 512; i++) {
     if (map_fs_buffer.is_filled[i] == 0x0) {
-      emptySector+=1;
+      emsect+=1;
     }
   }
 
-  if (emptySector < filesizeinsector) {
+  if (emsect < fzins) {
     *return_code = FS_W_NOT_ENOUGH_STORAGE;
     return;
   }
@@ -648,7 +534,7 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   for (i = 0; i < 32; i++) {
     memcpy(&sebuff, &sector_fs_buffer.sector_list[i], sizeof(struct sector_entry));
     if (&sebuff == 0x0) {
-      sectorid = i;
+      isect = i;
       found = true;
       break;
     }
@@ -658,31 +544,21 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
     *return_code = FS_W_MAXIMUM_SECTOR_ENTRY;
     return;
   }
-  // Penulisan
-  // 1. Tuliskan metadata nama dan byte P ke node pada memori buffer
-  // 2. Jika menulis folder, tuliskan byte S dengan nilai
-  //    FS_NODE_S_IDX_FOLDER dan lompat ke langkah ke-8 
-  // 3. Jika menulis file, tuliskan juga byte S sesuai indeks sector
+  // // Penulisan
+  // // 1. Tuliskan metadata nama dan byte P ke node pada memori buffer
+  // // 2. Jika menulis folder, tuliskan byte S dengan nilai
+  // //    FS_NODE_S_IDX_FOLDER dan lompat ke langkah ke-8 
+  // // 3. Jika menulis file, tuliskan juga byte S sesuai indeks sector
 
-  if (metadata->filesize == 0) {
-    pb = metadata->parent_index;
-    sb = FS_NODE_S_IDX_FOLDER;
-  } else {
-    pb = metadata->parent_index;
-    sb = sectorid;
-  }
-  printString("Here: "); printString(metadata->node_name); endl;
-  if (nodeid <= 63) {
-    readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER);
-    memcpy(&node_fs_buffer.nodes[nodeid], pb, 1);
-    memcpy(&node_fs_buffer.nodes[nodeid] + 1, sb, 1);
-    memcpy(&node_fs_buffer.nodes[nodeid] + 2, metadata->node_name, 14);
-  } else {
-    readSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER+1);
-    memcpy(&node_fs_buffer.nodes[nodeid-64], pb, 1);
-    memcpy(&node_fs_buffer.nodes[nodeid-64] + 1, sb, 1);
-    memcpy(&node_fs_buffer.nodes[nodeid-64] + 2, metadata->node_name, 14);
-  }
+
+  strcpy(nebuff.name, metadata->node_name);
+  nebuff.parent_node_index = pb;
+  nebuff.sector_entry_index = sb;
+  memcpy(&node_fs_buffer.nodes[inode], &nebuff, sizeof(struct node_entry));
+
+  // printString("Here: "); printString(metadata->node_name); endl;
+  // if (nodeid <= 63) {
+
   if (metadata->filesize > 0) {
     // 4. Persiapkan variabel j = 0 untuk iterator entry sector yang kosong
     // 5. Persiapkan variabel buffer untuk entry sector kosong
@@ -703,26 +579,27 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
 
     i = 16; // sector reserved for fsys
     j = 0;
-    memcpy(&sebuff, &sector_fs_buffer.sector_list[sectorid], sizeof(struct sector_entry));
-    while (filesizeinsector > 0 && i < 256) {
+    memcpy(&sebuff, &sector_fs_buffer.sector_list[isect], sizeof(struct sector_entry));
+    while (fzins > 0 && i < 256) {
       if (!map_fs_buffer.is_filled[i]) {
         writeSector(metadata->buffer[j*512], i);
         sebuff.sector_numbers[j] = i;
         j++;
         map_fs_buffer.is_filled[i] = true;
-        filesizeinsector -= 1;
+        fzins -= 1;
       }
       i++;
     }
-    memcpy(&sector_fs_buffer.sector_list[sectorid], &sebuff, sizeof(struct sector_entry));
+    memcpy(&sector_fs_buffer.sector_list[isect], &sebuff, sizeof(struct sector_entry));
   }
 
-  // 8. Lakukan penulisan seluruh filesystem (map, node, sector) ke storage
-  //    menggunakan writeSector() pada sektor yang sesuai
+  // // 8. Lakukan penulisan seluruh filesystem (map, node, sector) ke storage
+  // //    menggunakan writeSector() pada sektor yang sesuai
   writeSector(&map_fs_buffer, FS_MAP_SECTOR_NUMBER);
   writeSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER);
+  writeSector(&node_fs_buffer.nodes[32], FS_NODE_SECTOR_NUMBER + 1);
   writeSector(&sector_fs_buffer, FS_SECTOR_SECTOR_NUMBER);
-  // 9. Kembalikan retcode FS_SUCCESS
+  // // 9. Kembalikan retcode FS_SUCCESS
   *return_code = FS_SUCCESS;
   return;
 }

@@ -16,7 +16,7 @@ kernel:
 
 
 stdlib:
-	bcc -ansi -O3 -c -o out/std_lib.o src/c/std_lib.c
+	bcc -ansi -c -o out/std_lib.o src/c/std_lib.c
 
 run:
 	bochs -f src/config/if2230.config
