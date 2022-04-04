@@ -320,7 +320,8 @@ void shell() {
       clear(&metadata, sizeof(struct file_metadata));
       metadata.buffer = (byte*)0x2000;
       metadata.parent_index = getinodecwd(cwd);
-      strcpy(metadata.node_name, "file_idx_63");
+      // GANTI SAMA BUF
+      strcpy(metadata.node_name, "file_idx_63_2");
       read(&metadata, &return_code);
       respcode(return_code);
       printString(metadata.buffer); endl;
@@ -333,8 +334,18 @@ void shell() {
       //   memcpy(args2, (&metadata) + j*64, 63);
       //   args2[63] = '\0';
       // }
-    } else if (strcmp("cp", buf)) {
-      
+    } else if (strcmp("cp", args1)) {
+      clear(&metadata, sizeof(struct file_metadata));
+      metadata.buffer = (byte*)0x2000;
+      metadata.parent_index = getinodecwd(cwd);
+      // GANTI SAMA BUF
+      strcpy(metadata.node_name, "file_idx_63");
+      read(&metadata, &return_code);
+      respcode(return_code);
+      // GANTI SAMA FILE NAME + _2
+      strcpy(metadata.node_name, "file_idx_63_2");
+      write(&metadata, &return_code);
+      respcode(return_code);
     } else {
       printString("Command not Recognized"); endl;
     }
@@ -579,7 +590,7 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
     }
   }
 
-  if (!found) {
+  if (!found && metadata->filesize == 0) {
     *return_code = FS_W_MAXIMUM_NODE_ENTRY;
     return;
   }
@@ -626,7 +637,7 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   found = false;
   for (i = 0; i < 32; i++) {
     memcpy(&sebuff, &sector_fs_buffer.sector_list[i], sizeof(struct sector_entry));
-    if (&sebuff == 0x0) {
+      if (sebuff.sector_numbers[0] == 0x0) {
       isect = i;
       found = true;
       break;
