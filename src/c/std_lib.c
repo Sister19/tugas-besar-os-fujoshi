@@ -51,12 +51,17 @@ bool strcmp(char *s1, char *s2) {
 // Mengembalikan true jika string sama
 
 void strcpy(char *dst, char *src) {
-  int i = 0;
-  while (src[i] != '\0'){
-    dst[i] = src[i];
-    i++;
-  }
-  dst[i] = '\0';
+    char *ptr = dst;
+ 
+    // copy the C-string pointed by source into the array
+    // pointed by destination
+    while (*src != '\0')
+    {
+        *dst = *src;
+        dst++;
+        src++;
+    }
+    *dst = '\0';
 }
 // Melakukan penyalinan null terminated string
 
