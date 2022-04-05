@@ -28,11 +28,11 @@ void shell();
 
 // kepentingan shell
 
-void cdHandler(char *path);
-void lsHandler(char* cwd);
-void mvHandler(char *srcpath, char *dstpath);
-void mkdirHandler(char* cwd, char* path, unsigned int pathsize, unsigned int cwdsize);
-void catHandler(char *path);
-void cpHandler(char *srcpath, char *dstpath);
+// void cdHandler(char *path);
+// void lsHandler(char* cwd);
+// void mvHandler(char *srcpath, char *dstpath);
+// void mkdirHandler(char* cwd, char* path, unsigned int pathsize, unsigned int cwdsize);
+// void catHandler(char *path);
+// void cpHandler(char *srcpath, char *dstpath);
 
 
