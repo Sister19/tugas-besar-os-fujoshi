@@ -18,7 +18,6 @@ int main() {
   fillKernelMap();
   makeInterrupt21();
   clearScreen();
-
   shell();
   // KERNEL STAY
 }
@@ -87,23 +86,23 @@ void uintprint(unsigned int toprint) {
 
 void respcode(enum fs_retcode return_code) {
   if (return_code == FS_SUCCESS) {
-    printString("SUC"); endl;
+    printString("Success"); endl;
   } else if (return_code == FS_R_NODE_NOT_FOUND) {
-    printString("RNF"); endl;
+    printString("Node not found"); endl;
   } else if (return_code == FS_R_TYPE_IS_FOLDER) {
-    printString("RTF"); endl;
+    printString("Type is Folder"); endl;
   } else if (return_code == FS_W_FILE_ALREADY_EXIST) {
-    printString("FAEX"); endl;
+    printString("File / Folder already exists"); endl;
   } else if (return_code == FS_W_NOT_ENOUGH_STORAGE) {
-    printString("NES"); endl;
+    printString("Not Enough Storage"); endl;
   } else if (return_code == FS_W_MAXIMUM_NODE_ENTRY) {
-    printString("MXN"); endl;
+    printString("Maximum Node Entry"); endl;
   } else if (return_code == FS_W_MAXIMUM_SECTOR_ENTRY) {
-    printString("MXS"); endl;
+    printString("Maximum Sector Entry"); endl;
   } else if (return_code == FS_W_INVALID_FOLDER) {
-    printString("INV"); endl;
+    printString("Invalid"); endl;
   } else {
-    printString("UKN"); endl;
+    printString("Unkown"); endl;
   }
 }
 
@@ -241,6 +240,7 @@ void lsHandler(byte* inode) {
 void mkdirHandler(char* fname, byte* inode) {
   struct file_metadata metadata;
   enum fs_retcode return_code;
+  metadata.buffer = (byte*)0x2000;
   metadata.parent_index = *inode;
   strcpy(metadata.node_name, fname);
   metadata.filesize = 0;
@@ -259,7 +259,7 @@ void catHandler(char* fname, byte* inode) {
   if (return_code == FS_SUCCESS) {
     interrupt(0x21, 0, metadata.buffer, 0, 0); endl;
   } else {
-    interrupt(0x21, 0, "S W W", 0, 0); endl;
+    interrupt(0x21, 0, "Failed to read", 0, 0); endl;
     respcode(return_code);
   }
 
@@ -282,13 +282,13 @@ void cpHandler(char* src, char* dst, byte* inode) {
     // printString("filesize: "); uintprint(msrc.filesize); endl;
     write(&msrc, &return_code);
     if (return_code == FS_SUCCESS) {
-      interrupt(0x21, 0, "FCS", 0, 0); endl;
+      interrupt(0x21, 0, "Copy Success", 0, 0); endl;
     } else {
-      interrupt(0x21, 0, "W W", 0, 0); endl;
+      interrupt(0x21, 0, "Writing fail", 0, 0); endl;
       respcode(return_code);
     }
   } else {
-    interrupt(0x21, 0, "W R", 0, 0); endl;
+    interrupt(0x21, 0, "Reading fail", 0, 0); endl;
     respcode(return_code);
   }
 }
@@ -327,6 +327,15 @@ void mvHandler(char* cwd, char* fsrc, char* fdst) {
     cwdtemp[j] = '\0';
   }
   inodedst = getinodecwd(cwdtemp);
+  // printString("cwdtemp: "); printString(cwdtemp); endl;
+  // printString("fdst: "); printString(fdst); endl;
+  for (i = 0; i < 64; i++) {
+    memcpy(&nebuff, &node_fs.nodes[i], sizeof(struct node_entry));
+    if (strcmp(nebuff.name, fdst) && nebuff.parent_node_index == inodedst) {
+      interrupt(0x21, 0, "file/folder already exists", 0, 0); endl;
+      return;
+    }
+  }
   for (i = 0; i < 64; i++) {
     memcpy(&nebuff, &node_fs.nodes[i], sizeof(struct node_entry));
     if (strcmp(nebuff.name, fsrc) && nebuff.parent_node_index == inodesrc) {
@@ -338,32 +347,38 @@ void mvHandler(char* cwd, char* fsrc, char* fdst) {
       return;
     }
   }
-  interrupt(0x21, 0, "TGTNF", 0, 0); endl;
+  interrupt(0x21, 0, "file/folder not found", 0, 0); endl;
   return;
 }
 
-bool strcmpl(char *s1, char *s2) {
-  int i = 0;
-  if (strlen(s1) == strlen(s2)){
-    while (s1[i] != '\0'){
-      if (s1[i] != s2[i]){
-        // printString("false"); endl;
-        return false;
-      }
-      i++;
-    }
-    return true;
-  } else {
-    // printString(s1); sp; printString(s2); endl;
-    return false;
-  }
-}
+// void printStringColor(char *str, unsigned int color) {
+//   int i;
+//   int baris=getRawCursorPos() >> 8;
+//   int kolom=getRawCursorPos() & 0xFF;
+//   int temp;
+//   for (i = 0; str[i] != '\0'; i++) {
+//     if (kolom == 79){
+//       endl; kolom = 0;
+//       if (baris != 24) baris++;
+//     }
+//     putInMemory(0xB000, 0x8000+((baris)*80+kolom)*2, str[i]);
+//     putInMemory(0xB000, 0x8001+((baris)*80+kolom)*2, color);
+//     kolom++;
+//   }
+//   temp = 0x100*baris + kolom;
+//   interrupt(0x10, 0x0200, 0x1, 0, temp);
+//   for (i = 0; i < 80-kolom; i++) {
+//     putInMemory(0xB000, 0x8001+((baris)*80+kolom+i)*2, 0xF);
+//   }
+// }
 
 void shell() {
   
   char buf[64]; char args1[64]; char args2[64]; 
 
   char cwd[64]; char name[64];
+
+
   // struct node_filesystem node_fs_1;
   // struct node_filesystem node_fs_2;
   // struct node_entry nebuff;
@@ -373,24 +388,21 @@ void shell() {
 
   int i; int j; byte inode; byte inode2;
 
-  strcpy(name,  "GG");
-  strcpy(cwd,  "/");
-
-  endl; endl;
-  // interrupt(0x21, 0x0, "Masukkan Nama: ", 0, 0);
-  // interrupt(0x21, 0x1, buf, 0, 0);
-  // strcpy(&name, buf);
-  // strcpy(&cwd, "/");
-  // interrupt(0x21, 0x0, "Halo ", 0, 0);
-  // interrupt(0x21, 0x0, buf, 0, 0);
-  // interrupt(0x21, 0x0, ", Selamat Datang di FujOShi, Enjoy your Stay!", 0, 0);
   // endl; endl;
+  // strcpy(name, "GG");
+  // strcpy(cwd, "/");
+  endl; endl;
+  interrupt(0x21, 0x0, "Masukkan Nama: ", 0, 0);
+  interrupt(0x21, 0x1, buf, 0, 0);
+  strcpy(&name, buf);
+  strcpy(&cwd, "/");
+  endl;
   while (true) {
-    interrupt(0x21, 0x0, "FujOShi@", 0, 0);
-    interrupt(0x21, 0x0, name, 0, 0);
-    interrupt(0x21, 0x0, ":", 0, 0);
-    interrupt(0x21, 0x0, cwd, 0, 0);
-    interrupt(0x21, 0x0, "$ ", 0, 0);
+    printString("FujOShi@");
+    printString(name);
+    printString(":");
+    printString(cwd);
+    printString("$ ");
     interrupt(0x21, 0x1, buf, 0, 0);
     i = 0;
     while (buf[i] != ' ' && buf[i] != '\0') i++;
@@ -400,7 +412,7 @@ void shell() {
         strcpy(args2, buf+i+1);
         strcpy(cwd, cdHandler(cwd, args2, &return_code));
         if (return_code != FS_SUCCESS) {
-          interrupt(0x21, 0, "FLDNEX", 0, 0); endl;
+          interrupt(0x21, 0, "Folder not exists", 0, 0); endl;
         }
     } else if (strcmp("ls", args1)) {
         inode = getinodecwd(cwd);
@@ -486,20 +498,18 @@ void handleInterrupt21(int AX, int BX, int CX, int DX) {
 
 }
 
-// void splashScreen() {
-//   char* str = "FujOShi System";
-// 	interrupt(0x10, 0x200, pagenum, 0, 0x222);
-// 	interrupt(0x21, 0x0, str, 0, 0);
-// 	interrupt(0x10, 0x200, pagenum, 0, 0x400);
-// }
-
 void printString(char* string) {
 	int i = 0;
 	while (string[i] != '\0') { // 0x0 == '\0'
     if (string[i] == '\n' && string[i-1] != '\r') {
       interrupt(0x10, 0xE00 + '\r', pagenum, 0, 0);
+      interrupt(0x10, 0xE00+string[i], pagenum, 0, 0);
+    } else if (string[i] == 0x22) {
+      interrupt(0x10, 0xE00 + '"', pagenum, 0, 0);
+    } else {
+      interrupt(0x10, 0xE00+string[i], pagenum, 0, 0);
     }
-		interrupt(0x10, 0xE00+string[i], pagenum, 0, 0);
+		
 		i++;
 	}
 }
@@ -692,13 +702,8 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   for (i = 0; i < 64; i++) {
     memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
     if (strcmp(nebuff.name, metadata->node_name) && nebuff.parent_node_index == metadata->parent_index) {
-      if (nebuff.sector_entry_index == FS_NODE_S_IDX_FOLDER && metadata->filesize == 0) {
-        *return_code = FS_W_FILE_ALREADY_EXIST;
-        return;
-      } else if (nebuff.sector_entry_index != FS_NODE_S_IDX_FOLDER && metadata->filesize > 0) {
-        *return_code = FS_W_FILE_ALREADY_EXIST;
-        return;
-      }
+      *return_code = FS_W_FILE_ALREADY_EXIST;
+      return;
     }
   }
   // 2. Cari entri kosong pada filesystem node dan simpan indeks.
@@ -708,7 +713,7 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
   found = false;
   for (i = 0; i < 64; i++) {
     memcpy(&nebuff, &node_fs_buffer.nodes[i], sizeof(struct node_entry));
-    if (nebuff.parent_node_index == 0x0) {
+    if (nebuff.name[0] == 0x0) {
       inode = i;
       found = true;
       break;
@@ -836,12 +841,6 @@ void write(struct file_metadata *metadata, enum fs_retcode *return_code) {
 
   // // 8. Lakukan penulisan seluruh filesystem (map, node, sector) ke storage
   // //    menggunakan writeSector() pada sektor yang sesuai
-  // printString("mtdt info w"); endl;
-  // printString(metadata->node_name); endl;
-  // uintprint(metadata->parent_index); endl;
-  // uintprint(metadata->filesize); endl;
-  // uintprint(inode); endl;
-  // uintprint(isect); endl;
   writeSector(&map_fs_buffer, FS_MAP_SECTOR_NUMBER);
   writeSector(&node_fs_buffer, FS_NODE_SECTOR_NUMBER);
   writeSector(&node_fs_buffer.nodes[32], FS_NODE_SECTOR_NUMBER + 1);
