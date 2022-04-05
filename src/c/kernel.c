@@ -159,7 +159,7 @@ byte getinodecwd(char* cwd) {
   }
 }
 
-char* cdHandler(char* cwd, char* args2) {
+char* cdHandler(char* cwd, char* args2, enum fs_retcode* return_code) {
   int i; int j; int sp1;
   byte inode;
   char args1[64];
@@ -204,8 +204,10 @@ char* cdHandler(char* cwd, char* args2) {
   inode = getinodecwd(cwd);
     // printString(cwd); sp; uintprint(j);endl;
   if (inode == 0x40) {
-    interrupt(0x21, 0x0, "DIRNF", 0, 0);
+    *return_code = FS_W_INVALID_FOLDER;
     strcpy(cwd, args1);
+  } else {
+    *return_code = FS_SUCCESS;
   }
   return cwd;
 }
@@ -266,7 +268,7 @@ void catHandler(char* fname, byte* inode) {
 void cpHandler(char* src, char* dst, byte* inode) {
   struct file_metadata msrc;
   enum fs_retcode return_code;
-  msrc.buffer = (byte*)0x4000;
+  msrc.buffer = (byte*)0x2000;
   strcpy(msrc.node_name, src);
   msrc.parent_index = *inode;
   msrc.filesize = 0;
@@ -291,6 +293,55 @@ void cpHandler(char* src, char* dst, byte* inode) {
   }
 }
 
+void mvHandler(char* cwd, char* fsrc, char* fdst) {
+  struct node_filesystem node_fs;
+  struct node_entry nebuff; byte inodesrc; byte inodedst;
+  int i; int j; bool found; char cwdtemp[64];
+
+  inodesrc = getinodecwd(cwd);
+
+  found = false;
+  readSector(&node_fs, FS_NODE_SECTOR_NUMBER);
+  readSector(&node_fs.nodes[32], FS_NODE_SECTOR_NUMBER+1);
+  if (fdst[0] == '/') {
+    strcpy(cwdtemp, fdst);
+  } else if (fdst[0] == '.' && fdst[1] == '.' && fdst[2] == '/') {
+    strcpy(cwdtemp, cwd);
+    strcpy(cwdtemp + strlen(cwd), fdst+2);
+  } else {
+    i = strlen(cwd);
+    strcpy(cwdtemp, cwd);
+    strcpy(cwdtemp + i, "/");
+    strcpy(cwdtemp + i+1, fdst);
+  }
+  
+  i = 0; j = 0;
+  while (cwdtemp[i] != '\0') {
+    if (cwdtemp[i] == '/') j = i;
+    i++;
+  }
+  strcpy(fdst, cwdtemp+j+1);
+  if (j == 0) {
+    cwdtemp[1] = '\0';
+  } else {
+    cwdtemp[j] = '\0';
+  }
+  inodedst = getinodecwd(cwdtemp);
+  for (i = 0; i < 64; i++) {
+    memcpy(&nebuff, &node_fs.nodes[i], sizeof(struct node_entry));
+    if (strcmp(nebuff.name, fsrc) && nebuff.parent_node_index == inodesrc) {
+      strcpy(nebuff.name, fdst);
+      nebuff.parent_node_index = inodedst;
+      memcpy(&node_fs.nodes[i], &nebuff, sizeof(struct node_entry));
+      writeSector(&node_fs, FS_NODE_SECTOR_NUMBER);
+      writeSector(&node_fs.nodes[32], FS_NODE_SECTOR_NUMBER+1);
+      return;
+    }
+  }
+  interrupt(0x21, 0, "TGTNF", 0, 0); endl;
+  return;
+}
+
 bool strcmpl(char *s1, char *s2) {
   int i = 0;
   if (strlen(s1) == strlen(s2)){
@@ -309,13 +360,18 @@ bool strcmpl(char *s1, char *s2) {
 }
 
 void shell() {
+  
+  char buf[64]; char args1[64]; char args2[64]; 
+
+  char cwd[64]; char name[64];
   // struct node_filesystem node_fs_1;
   // struct node_filesystem node_fs_2;
   // struct node_entry nebuff;
+  enum fs_retcode return_code;
   // int cwd_id;
   // int i;
-  char buf[64]; char name[64]; char cwd[64]; char args1[64]; char args2[64];
-  int i; int j; byte inode;
+
+  int i; int j; byte inode; byte inode2;
 
   strcpy(name,  "GG");
   strcpy(cwd,  "/");
@@ -330,9 +386,6 @@ void shell() {
   // interrupt(0x21, 0x0, ", Selamat Datang di FujOShi, Enjoy your Stay!", 0, 0);
   // endl; endl;
   while (true) {
-    clear(buf, 64);
-    clear(args1, 64);
-    clear(args2, 64);
     interrupt(0x21, 0x0, "FujOShi@", 0, 0);
     interrupt(0x21, 0x0, name, 0, 0);
     interrupt(0x21, 0x0, ":", 0, 0);
@@ -343,20 +396,30 @@ void shell() {
     while (buf[i] != ' ' && buf[i] != '\0') i++;
     memcpy(args1, buf, i);
     args1[i] = '\0';
-    if (strcmpl("cd", args1)) {
+    if (strcmp("cd", args1)) {
         strcpy(args2, buf+i+1);
-        strcpy(cwd, cdHandler(cwd, args2));
-    } else if (strcmpl("ls", args1)) {
+        strcpy(cwd, cdHandler(cwd, args2, &return_code));
+        if (return_code != FS_SUCCESS) {
+          interrupt(0x21, 0, "FLDNEX", 0, 0); endl;
+        }
+    } else if (strcmp("ls", args1)) {
         inode = getinodecwd(cwd);
         lsHandler(&inode);  
       // file search
-    } else if (strcmpl("mv", args1)) {
-    } else if (strcmpl("mkdir", args1)) {
+    } else if (strcmp("mv", args1)) {
+      inode = getinodecwd(cwd);
+      j = i+1;
+      while (buf[j] != ' ' && buf[j] != '\0') j++;
+      memcpy(args1, buf+i+1, j-i-1);
+      args1[j-i-1] = '\0';
+      strcpy(args2, buf+j+1);
+      mvHandler(cwd, args1, args2);
+    } else if (strcmp("mkdir", args1)) {
       inode = getinodecwd(cwd);
       strcpy(args2, buf+i+1);
       mkdirHandler(args2, &inode);
       // PROCESS END
-    } else if (strcmpl("cat", args1)) {
+    } else if (strcmp("cat", args1)) {
       inode = getinodecwd(cwd);
       strcpy(args2, buf+i+1);
       catHandler(args2, &inode);

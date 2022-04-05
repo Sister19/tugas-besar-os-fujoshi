@@ -4,16 +4,12 @@
 
 int div(int a, int b) {
   int c = 0;
-  while (c * b <= a){
-    c++;
-  }
+  while (c * b <= a) c++;
   return c - 1;
 }
 
 int mod(int a, int n) {
-  while (a >= n){
-    a -= n;
-  }
+  while (a >= n) a -= n;
   return a;
 }
 
@@ -67,7 +63,5 @@ void strcpy(char *dst, char *src) {
 
 void clear(byte *ptr, unsigned int n) {
   int i;
-  for (i = 0; i < n; i++){
-    ptr[i] = 0x0;
-  }
+  for (i = 0; i < n; i++) ptr[i] = 0x0;
 }
