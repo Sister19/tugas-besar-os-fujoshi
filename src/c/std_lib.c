@@ -1,4 +1,6 @@
+#include "header/std_type.h"
 #include "header/std_lib.h"
+
 
 // Opsional : Tambahkan implementasi kode C
 
@@ -19,7 +21,6 @@ void memcpy(byte *dest, byte *src, unsigned int n) {
     dest[i] = src[i];
   }
 }
-// Mengcopy n bytes yang ditunjuk src ke dest
 
 unsigned int strlen(char *string) {
   int i = 0;
@@ -59,7 +60,7 @@ void strcpy(char *dst, char *src) {
     }
     *dst = '\0';
 }
-// Melakukan penyalinan null terminated string
+// Mengcopy n bytes yang ditunjuk src ke dest
 
 void clear(byte *ptr, unsigned int n) {
   int i;

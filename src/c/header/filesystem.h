@@ -1,7 +1,5 @@
 // Filesystem data structure
 
-#include "std_type.h"
-
 #define FS_MAP_SECTOR_NUMBER    0x100
 #define FS_NODE_SECTOR_NUMBER   0x101
 #define FS_SECTOR_SECTOR_NUMBER 0x103
@@ -14,6 +12,19 @@ struct map_filesystem {
     bool is_filled[512];
 };
 
+struct message {
+    byte current_directory;
+    char arg1[64];
+    char arg2[64];
+    char arg3[64];
+    int next_program_segment; // Dapat digunakan untuk bagian 3.5
+    byte other[317];
+};
+
+// KHUSUS GLOBAL
+// arg1 cwd
+// arg2, arg3, sesuai command
+// other[0] sector_message_called
 
 // Untuk filesystem nodes
 struct node_entry {
