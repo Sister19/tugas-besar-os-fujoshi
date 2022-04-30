@@ -38,9 +38,6 @@ prog:
 	bcc -ansi -c -O3 -o out/mv.o src/c/mv.c
 	ld86 -o out/mv -d out/mv.o out/lib_textio.o out/interrupt_asm.o out/lib_string.o out/lib_program.o out/lib_fileio.o
 
-loadprog:
-	./out/test_gen E
-
 stdlib:
 	bcc -ansi -O3 -c -o out/std_lib.o src/c/std_lib.c
 
